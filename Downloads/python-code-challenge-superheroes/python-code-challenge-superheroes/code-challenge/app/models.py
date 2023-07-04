@@ -4,6 +4,15 @@ from sqlalchemy.orm import validates
 
 db = SQLAlchemy()
 
+hero_powers = db.Table(
+    "hero_power",
+    db.Column("hero_id", db.ForeignKey("heroes.id"), primary_key=True),
+    db.Column("power_id", db.ForeignKey("powers.id"), primary_key=True),
+    db.Column("strength", db.String),
+    db.Column("created_at", db.DateTime, server_default=db.func.now()),
+    db.Column("updated_at", db.DateTime, onupdate=db.func.now())
+)
+
 class Hero(db.Model, SerializerMixin):
     __tablename__ = 'heroes'
 
@@ -12,8 +21,8 @@ class Hero(db.Model, SerializerMixin):
     super_name= db.Column(db.String)
     created_at= db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
-    hero_powers = db.relationship("Hero_power", backref="hero")
-    serialize_rules = ("-hero_powers.hero",)
+    powers = db.relationship("Power", secondary=hero_powers, back_populates="heroes")
+    serialize_rules = ("-powers.heroes",)
 
     def __repr__(self):
         return f"Hero {self.name} has {self.super_name}."
@@ -26,8 +35,8 @@ class Power(db.Model, SerializerMixin):
     description= db.Column(db.String)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
-    hero_powers= db.relationship("Hero_power", backref="power")
-    serialize_rules = ("-hero_powers.power",)
+    heroes = db.relationship("Hero", secondary=hero_powers, back_populates="powers")
+    serialize_rules = ("-heroes.powers",)
 
     def __repr__(self):
         return f"Power {self.name} was created at {self.created_at}."
@@ -38,26 +47,6 @@ class Power(db.Model, SerializerMixin):
             raise ValueError("Description must be atleast 20 characters long.")
         return description
     
-class Hero_power(db.Model, SerializerMixin):
-    __tablename__ = "hero_powers"
-
-    id = db.Column(db.Integer, primary_key=True)
-    strength = db.Column(db.String)
-    hero_id = db.Column(db.Integer, db.ForeignKey("heroes.id"))
-    power_id = db.Column(db.Integer, db.ForeignKey("powers.id"))
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
-    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
-    serialize_rules = ("-hero.hero_powers", "-power.hero_powers",)
-
-    def __repr__(self):
-        return f"Hero_power with {self.strength} belongs to hero {self.hero_id}"
-    
-    @validates("strength")
-    def validate_strength(self, key, strength):
-        if strength and strength not in ["Strong", "Weak", "Average"]:
-            raise ValueError("Invalid strength.")
-        return strength
-
 
 
 

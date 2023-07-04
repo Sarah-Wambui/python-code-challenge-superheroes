@@ -1,16 +1,14 @@
 #!usr/bin/env python3
 from random import randint, choice as rc
 from faker import Faker
-from models import db, Hero, Power, Hero_power
+from models import db, Hero, Power, hero_powers
 from app import app
 
 fake = Faker()
-strengths = ["Strong", "Weak", "Average"]
 
 with app.app_context():
     Hero.query.delete()
     Power.query.delete()
-    Hero_power.query.delete()
 
     heroes = []
     for i in range(50):
@@ -30,13 +28,18 @@ with app.app_context():
         powers.append(power)
     db.session.add_all(powers)
 
-    hero_powers = []
-    for i in range(50):
-        hero_power = Hero_power(
-            strength=rc(strengths),
-            hero_id= randint(1, 50),
-            power_id = randint(1, 50)
-        )
-        hero_powers.append(hero_power)
-    db.session.add_all(hero_powers)
+    combinations = set()
+    strengths = ["Strong", "Weak", "Average"]
+    for _ in range(50):
+        hero_id = randint(1, 50)
+        power_id = randint(1, 50)
+        strength = rc(strengths)
+
+        if (hero_id, power_id, strength) in combinations:
+            continue
+        combinations.add((hero_id, power_id, strength))
+        hero_power_data = {"hero_id": hero_id, "power_id": power_id, "strength": strength}
+        statement = db.insert(hero_powers).values(hero_power_data)
+        db.session.execute(statement)
+        db.session.commit()
     db.session.commit()

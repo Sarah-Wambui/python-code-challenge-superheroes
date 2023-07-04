@@ -3,7 +3,7 @@
 from flask import Flask, make_response, jsonify, request
 from flask_migrate import Migrate
 
-from models import db, Hero, Power, Hero_power
+from models import db, Hero, Power, hero_powers
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
@@ -39,7 +39,7 @@ def powers():
     return make_response(jsonify({"powers": powers}), 200)   
 
 # get powers by id
-@app.route("/powers/<int:id>", methods=["GET", "PATCH", "DELETE"])
+@app.route("/powers/<int:id>", methods=["GET", "PATCH"])
 def powers_by_id(id):
     power = Power.query.filter_by(id=id).first()
     if not power:
@@ -60,29 +60,37 @@ def powers_by_id(id):
             return make_response(jsonify(power.to_dict()), 200)
 
 # post hero_powers
-@app.route("/hero_powers", methods=["GET", "POST"])
-def hero_powers():
-    hero_ps = [hero_p.to_dict() for hero_p in Hero_power.query.all()]
-    if not hero_ps:
-        return make_response(jsonify({"error":"That record does not exist in our database"}), 404)
-    else:
-        if request.method == "GET":
-            return make_response(jsonify({"hero_power": hero_ps}), 200)
+@app.route("/hero_powers", methods=["POST"])
+def create_hero_power():
         
-        elif request.method == "POST":
+        if request.method == "POST":
             # validate if strength is in the given strengths
             if request.form.get("strength") not in ["Strong", "Weak", "Average"]:
                 return make_response(jsonify({"errors": ["validation errors"]}),400)
             
             # if it is, post the strength
-            new_hp = Hero_power(
-                strength = request.form.get("strength"),
-                power_id=request.form.get("power_id"),
-                hero_id = request.form.get("hero_id"),
+            strength = request.form.get("strength")
+            power_id = request.form.get("power_id")
+            hero_id =  request.form.get("hero_id")
+
+            new_hp = hero_powers.insert().values(
+                strength = strength ,
+                power_id= power_id,
+                hero_id = hero_id,
             )
-            db.session.add(new_hp)
+            db.session.execute(new_hp)
             db.session.commit()
-            return make_response(jsonify(new_hp.to_dict()), 201)
+            
+
+            updated_hero = Hero.query.filter_by(id=hero_id).first()
+            response_data = {
+                "id": updated_hero.id,
+                "name": updated_hero.name,
+                "super_name": updated_hero.super_name,
+                "powers": [power.to_dict() for power in updated_hero.powers]
+            }
+
+            return make_response(jsonify(response_data), 201)
 
     
 
